@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+    <head>
+        {% include "common/head.html" %}
+        <link rel="stylesheet" href="/static/css/xterm.css">
+
+        <title>{{ current }} - noBMC</title>
+    </head>
+
+    <body>
+        {% include "common/nav.html" with context %}
+
+        <div class="container">
+            <h1 class="d-flex">
+                <span class="mr-auto">
+                    {{ current }}
+                    <img id="statusPowerOff" src="/static/img/status-power-inactive.svg" width="32" height="32">
+                    <img id="statusPowerOn" src="/static/img/status-power-active.svg" width="32" height="32"
+                         class="d-none">
+                    <img id="statusDiskOff" src="/static/img/status-harddisk-inactive.svg" width="32" height="32">
+                    <img id="statusDiskOn" src="/static/img/status-harddisk-active.svg" width="32" height="32"
+                         class="d-none">
+                </span>
+
+                <div class="btn-group align-self-center">
+                    <button type="button" class="btn btn-primary" id="resetButton">
+                        <img src="/static/img/action-reset.svg" width="16" height="16">
+                        Reset
+                    </button>
+                    <button type="button" class="btn btn-primary" id="powerButton">
+                        <img src="/static/img/action-power.svg" width="16" height="16">
+                        Power
+                    </button>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary dropdown-toggle" id="powerGroupDrop"
+                                data-toggle="dropdown"></button>
+                        <div class="dropdown-menu dropdown-menu-right">
+                            <button type="button" class="dropdown-item text-danger" id="forceOffButton">
+                                Force Shutdown
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </h1>
+
+            <div id="consoleContainer"></div>
+
+            <div>Console: <code>{{ servers[current]['console'] }}</code></div>
+            <div>Management: <code>{{ servers[current]['management'] }}</code></div>
+        </div>
+
+        <div class="modal fade" id="actionDialog">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="actionTitle"></h5>
+                        <button type="button" class="close" data-dismiss="modal">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="actionText"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-danger" id="actionButton"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% include "common/script.html" %}
+        <script src="/static/js/xterm.js"></script>
+        <script src="/static/js/socket.io.slim.js"></script>
+        <script>
+const my_server = '{{ current }}';
+let term = new Terminal();
+term.resize(80, 24);
+term.open(consoleContainer);
+
+let socket = io();
+socket.on('output', msg => {
+    if (msg.server === my_server) {
+        term.write(msg.data);
+    }
+});
+
+let power = false;
+let disk = false;
+socket.on('status', msg => {
+    if (msg.server === my_server) {
+        if (power != msg.status.power) {
+            power = msg.status.power;
+            statusPowerOn.classList.toggle("d-none");
+            statusPowerOff.classList.toggle("d-none");
+        }
+        if (disk != msg.status.disk) {
+            disk = msg.status.disk;
+            statusDiskOn.classList.toggle("d-none");
+            statusDiskOff.classList.toggle("d-none");
+        }
+    }
+});
+
+term.onData(input => {
+    socket.emit('input', {
+        server: my_server,
+        data: input
+    });
+});
+
+actionButton.addEventListener('click', () => {
+    socket.emit('action', {
+        server: my_server,
+        action: actionButton.dataset['action']
+    });
+
+    $(actionDialog).modal('hide');
+});
+
+actionDialog.addEventListener('hidden.bs.modal', () => {
+    actionTitle.textContent = '';
+    actionText.textContent = '';
+    actionButton.textContent = '';
+    actionButton.dataset['action'] = '';
+});
+
+powerButton.addEventListener('click', () => {
+    socket.emit('action', {
+        server: my_server,
+        action: 'power'
+    });
+});
+
+resetButton.addEventListener('click', () => {
+    actionTitle.textContent = 'Reset Computer';
+    actionText.textContent = 'This will press the reset button on the computer. Data loss is possible.';
+    actionButton.textContent = 'Reset';
+    actionButton.dataset['action'] = 'reset';
+    $(actionDialog).modal('show');
+});
+
+forceOffButton.addEventListener('click', () => {
+    actionTitle.textContent = 'Force Shutdown Computer';
+    actionText.textContent = 'This will hold the power button on the computer for a forced shutdown. ' +
+        'Data loss is possible.';
+    actionButton.textContent = 'Force Shutdown';
+    actionButton.dataset['action'] = 'forceoff';
+    $(actionDialog).modal('show');
+});
+        </script>
+    </body>
+</html>

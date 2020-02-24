@@ -1,0 +1,23 @@
+		<nav class="navbar navbar-expand-sm navbar-light bg-light">
+			<a class="navar-brand" href="/">noBMC</a>
+			<button class="navbar-toggler" type="button" data-toggle="collapse"
+				    data-target="#navbarSupportedContent">
+				<span class="navbar-toggler-icon"></span>
+			</button>
+
+			<div class="collapse navbar-collapse" id="navbarSupportedContent">
+				<ul class="navbar-nav mr-auto">
+					{% for name in servers.keys() %}
+					{% if name == current %}
+					<li class="nav-item active">
+						<a class="nav-link" href="#">{{name}}</a>
+					</li>
+					{% else %}
+					<li class="nav-item">
+						<a class="nav-link" href="/server/{{name}}">{{name}}</a>
+					</li>
+					{% endif %}
+					{% endfor %}
+				</ul>
+			</div>
+		</nav>
